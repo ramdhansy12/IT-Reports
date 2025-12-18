@@ -1,0 +1,8 @@
+# Jangan izinkan eksekusi script apapun di folder upload gambar
+php_flag engine off
+
+# Hanya izinkan file gambar
+<FilesMatch "\.(?i:php|php3|php4|php5|phtml|exe|sh|bin)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
