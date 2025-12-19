@@ -6,6 +6,12 @@ $filter_unit = "";
 $filter_kategori = "";
 $filter_status = "";
 
+// --- FITUR PAGINATION (LOGIKA AWAL) ---
+$batas = 10; // Jumlah data per halaman
+$halaman = isset($_GET['halaman']) ? (int)$_GET['halaman'] : 1;
+$halaman_awal = ($halaman > 1) ? ($halaman * $batas) - $batas : 0;
+// --------------------------------------
+
 // Proses Pencarian & Filter (Logika tetap sama)
 if (isset($_GET['search']) && !empty($_GET['search'])) {
     $search_query = mysqli_real_escape_string($conn, $_GET['search']);
@@ -24,13 +30,43 @@ if (isset($_GET['status']) && !empty($_GET['status'])) {
     $where_clause .= " AND status = '$filter_status'";
 }
 
+// --- HITUNG TOTAL DATA UNTUK PAGINATION ---
+$query_total = mysqli_query($conn, "SELECT COUNT(*) as total FROM laporan_it WHERE 1=1 $where_clause");
+$row_total = mysqli_fetch_assoc($query_total);
+$total_data = $row_total['total'];
+$total_halaman = ceil($total_data / $batas);
+// ------------------------------------------
+
 $units_result = mysqli_query($conn, "SELECT DISTINCT unit_kerja FROM laporan_it ORDER BY unit_kerja ASC");
 $categories_result = mysqli_query($conn, "SELECT DISTINCT kategori FROM laporan_it ORDER BY kategori ASC");
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h3><i class="fas fa-table"></i> Riwayat Maintenance IT</h3>
-    <a href="index.php?page=tambah_laporan" class="btn btn-success"><i class="fas fa-plus"></i> Tambah Laporan</a>
+<div class="d-flex flex-column mb-3">
+    <?php if (isset($_GET['msg'])): ?>
+    <div id="auto-alert" class="alert alert-info alert-dismissible fade show small py-2 mb-3" role="alert">
+        <i class="fas fa-info-circle me-1"></i> <?= htmlspecialchars($_GET['msg']); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"
+            style="padding: 0.5rem;"></button>
+    </div>
+    <?php endif; ?>
+
+    <div class="d-flex justify-content-between align-items-center">
+        <h3 class="fs-4 mb-0"><i class="fas fa-table text-primary"></i> Riwayat Perbaikan IT RS. Permata Keluarga</h3>
+        <div>
+            <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin'): ?>
+            <button type="button" class="btn btn-outline-success me-2" data-bs-toggle="modal"
+                data-bs-target="#importModal">
+                <i class="fas fa-file-import"></i> Import CSV
+            </button>
+            <?php endif; ?>
+
+            <a href="views/reports/export_excel.php" class="btn btn-outline-primary me-2">
+                <i class="fas fa-file-export"></i> Export Excel
+            </a>
+            <a href="index.php?page=tambah_laporan" class="btn btn-success"><i class="fas fa-plus"></i> Tambah
+                Laporan</a>
+        </div>
+    </div>
 </div>
 
 <div class="card shadow-sm mb-4 p-3 bg-white border-0">
@@ -92,7 +128,8 @@ $categories_result = mysqli_query($conn, "SELECT DISTINCT kategori FROM laporan_
         </thead>
         <tbody>
             <?php
-            $sql = "SELECT * FROM laporan_it WHERE 1=1 $where_clause ORDER BY tanggal DESC";
+            // Query ditambahkan LIMIT untuk Pagination
+            $sql = "SELECT * FROM laporan_it WHERE 1=1 $where_clause ORDER BY tanggal DESC LIMIT $halaman_awal, $batas";
             $result = mysqli_query($conn, $sql);
             if (mysqli_num_rows($result) > 0):
                 while($data = mysqli_fetch_array($result)):
@@ -101,7 +138,7 @@ $categories_result = mysqli_query($conn, "SELECT DISTINCT kategori FROM laporan_
             <tr>
                 <td class="small"><?= date('d/m/y H:i', strtotime($data['tanggal'])) ?></td>
                 <td><?= htmlspecialchars($data['unit_kerja']) ?></td>
-                <td><span class="badge bg-info text-dark"><?= htmlspecialchars($data['kategori']) ?></span></td>
+                <td><span class="badge bg-info text-light"><?= htmlspecialchars($data['kategori']) ?></span></td>
                 <td class="small"><?= htmlspecialchars(substr($data['deskripsi_masalah'], 0, 30)) ?>...</td>
                 <td><span class="badge <?= $badge ?>"><?= $data['status'] ?></span></td>
                 <td>
@@ -140,6 +177,25 @@ $categories_result = mysqli_query($conn, "SELECT DISTINCT kategori FROM laporan_
         </tbody>
     </table>
 </div>
+
+<nav>
+    <ul class="pagination pagination-sm justify-content-center">
+        <li class="page-item <?= ($halaman <= 1) ? 'disabled' : ''; ?>">
+            <a class="page-link"
+                href="?page=laporan&halaman=<?= $halaman - 1; ?>&search=<?= $search_query ?>&unit_kerja=<?= $filter_unit ?>&kategori=<?= $filter_kategori ?>&status=<?= $filter_status ?>">Previous</a>
+        </li>
+        <?php for($x=1; $x<=$total_halaman; $x++): ?>
+        <li class="page-item <?= ($halaman == $x) ? 'active' : ''; ?>">
+            <a class="page-link"
+                href="?page=laporan&halaman=<?= $x; ?>&search=<?= $search_query ?>&unit_kerja=<?= $filter_unit ?>&kategori=<?= $filter_kategori ?>&status=<?= $filter_status ?>"><?= $x; ?></a>
+        </li>
+        <?php endfor; ?>
+        <li class="page-item <?= ($halaman >= $total_halaman) ? 'disabled' : ''; ?>">
+            <a class="page-link"
+                href="?page=laporan&halaman=<?= $halaman + 1; ?>&search=<?= $search_query ?>&unit_kerja=<?= $filter_unit ?>&kategori=<?= $filter_kategori ?>&status=<?= $filter_status ?>">Next</a>
+        </li>
+    </ul>
+</nav>
 
 <div class="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -209,17 +265,53 @@ $categories_result = mysqli_query($conn, "SELECT DISTINCT kategori FROM laporan_
     </div>
 </div>
 
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title small"><i class="fas fa-file-import me-2"></i> Import Data Laporan</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="views/reports/import_csv.php" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 small mb-3">
+                        <i class="fas fa-exclamation-circle me-1"></i> Gunakan template resmi agar data masuk dengan
+                        benar.
+                        <br>
+                        <a href="views/reports/download_template.php" class="fw-bold text-decoration-none">
+                            <i class="fas fa-download me-1"></i> Download Template CSV
+                        </a>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Pilih File CSV</label>
+                        <input type="file" name="file" class="form-control form-control-sm" accept=".csv" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" name="import" class="btn btn-sm btn-success">Mulai Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 // Logic View Modal
 const vModal = document.getElementById('viewModal');
 vModal.addEventListener('show.bs.modal', function(e) {
     const b = e.relatedTarget;
     document.getElementById('v-tanggal').innerText = b.getAttribute('data-tanggal');
-    document.getElementById('v-petugas').innerText = b.getAttribute('data-petugas');
+    document.getElementById('v-petugas').innerText = b.getAttribute(
+        'data - petugas = "<?= htmlspecialchars($data['petugas_it'] ?? '-') ?>"');
     document.getElementById('v-unit').innerText = b.getAttribute('data-unit');
     document.getElementById('v-kategori').innerText = b.getAttribute('data-kategori');
     document.getElementById('v-masalah').innerText = b.getAttribute('data-masalah');
-    document.getElementById('v-tindakan').innerText = b.getAttribute('data-tindakan');
+    document.getElementById('v-tindakan').innerText = b.getAttribute(
+        'data - tindakan = "<?= htmlspecialchars($data['tindakan'] ?? 'Belum ada tindakan') ?>"');
+
+
 
     // Status Badge
     const st = b.getAttribute('data-status');

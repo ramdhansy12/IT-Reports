@@ -77,12 +77,16 @@ if (isset($_POST['update'])) {
                 <form method="POST" enctype="multipart/form-data">
                     <div class="col-md-4">
                         <label class="form-label fw-bold">Tanggal & Waktu Kejadian</label>
-                        <input type="text" id="tanggal_kustom" name="tanggal_kustom" class="form-control bg-white"
-                            placeholder="Pilih Tanggal & Jam" required>
+                        <div style="position: relative;">
+                            <input type="text" id="tanggal_kustom" name="tanggal_kustom" class="form-control bg-white"
+                                placeholder="Pilih Tanggal & Jam" style="padding-right: 35px;" required>
+                            <i class="bi bi-calendar-date"
+                                style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
+                        </div>
                         <small class="text-muted"
-                            style="font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;">Input
-                            tanggal & jam harus sesuai
-                            tindakan!!!.</small>
+                            style="font-family: 'Gill Sans', 'Gill Sans MT', Calibri, sans-serif;">
+                            Input tanggal & jam harus sesuai tindakan!!!
+                        </small>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-4">
